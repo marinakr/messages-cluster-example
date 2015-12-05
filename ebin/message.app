@@ -1,0 +1,9 @@
+{application,message,
+             [{description,[]},
+              {vsn,"1"},
+              {registered,[]},
+              {applications,[kernel,stdlib]},
+              {mod,{message_app,[]}},
+              {env,[]},
+              {modules,[index_handler,message,message_app,message_srv,
+                        message_sup,mnesiadb,req_handler]}]}.

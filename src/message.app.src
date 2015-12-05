@@ -1,0 +1,12 @@
+{application, message,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { message_app, []}},
+  {env, []}
+ ]}.
