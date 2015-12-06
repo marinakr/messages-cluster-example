@@ -35,13 +35,21 @@ handle(?REMOVE, <<"POST">>, Req, State) ->
 	cowboy_req:reply(200, [],  <<"ok">>, Req),
     {ok, Req, State};
 
-handle(Path = ?GET, <<"POST">>, Req, State) -> 
-	Body = Path,
+handle(?GET, <<"POST">>, Req, State) -> 
+	{ok,Body,_} = cowboy_req:body(Req),
+	
 	cowboy_req:reply(200, [], Body, Req),
     {ok, Req, State};
-handle(Path = ?SEND, <<"POST">>, Req, State) -> 
-	Body = Path,
-	cowboy_req:reply(200, [], Body, Req),
+handle(?SEND, <<"POST">>, Req, State) -> 
+	{ok,Body,_} = cowboy_req:body(Req),
+	{Mega, Sec, Micro} = os:timestamp(),
+	Hash = crypto:hash(md4,[
+							erlang:integer_to_binary(Mega),
+							erlang:integer_to_binary(Sec),
+							erlang:integer_to_binary(Micro),
+							Body]),
+	
+	cowboy_req:reply(200, [], Hash, Req),
     {ok, Req, State};
 
 handle(_, <<"POST">>, Req, State) -> 
