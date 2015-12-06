@@ -33,28 +33,24 @@ init(_Args) ->
     {ok, #state{nodes = [Node],mynode = {Host,Node}}}.
 
 handle_call({add_node,Node}, _From, State = #state{nodes = Nodes}) ->
-	{ok, NodeList} = application:get_env(message,node_list),
 	{MyHost,_MyNode} = State#state.mynode,
-	case proplists:get_value(Node, NodeList, none) of 
-		none -> 
-			io:format("~ninvalid node"),
-			{reply, node_not_run, State};
-		ValNode -> case lists:member(ValNode, Nodes) of
-				   true ->
-					   io:format("~nnode already exists"),
-					   {reply, ok, State};
-				  _ ->
-					  Re = Nodes++[ValNode],
-					  io:format("Node added, new list: ~n~p~n",[Re]),
-					  rpc:multicall([ValNode], gen_server, call, [message_srv,{add_node,MyHost},5000]),
-					  {reply, ok, State#state{nodes = Re}}
-			   end
+	{ValNode,Re} = add_new_node(Node,Nodes),
+	case ValNode of 
+		null -> {reply, ok, State#state{nodes = Re}};
+		_ -> 
+			rpc:multicall([ValNode], gen_server, info, [message_srv,{add_node,MyHost},5000]),
+			{reply, ok, State#state{nodes = Re}}
 	end;
-
-handle_call({remove_node,Node}, _From, State = #state{nodes = Nodes}) ->
-	Re = Nodes--[erlang:binary_to_list(Node)],
-	io:format("Node removed~n~p~n",[Re]),
-	{reply, ok, State#state{nodes = Re}};
+			  
+handle_call({remove_node,Node}, _From, State = #state{nodes = Nodes}) ->	
+	{MyHost,_MyNode} = State#state.mynode,
+	{T,Re} = remove(Node,Nodes),
+	case T of
+		null -> {reply, ok, State#state{nodes = Re}};
+		_ -> 
+			rpc:multicall(T, gen_server, info, [message_srv,{remove_node,MyHost},5000]),
+			{reply, ok, State#state{nodes = Re}}
+	end;
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
@@ -65,6 +61,15 @@ handle_cast(stop, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 -record(message, {hashcode, value, exp_date, node}).
+
+handle_info({remove_node,Node}, State = #state{nodes = Nodes}) -> 	
+	{_,Re} = remove(Node,Nodes),
+	io:format("Node removed: ~p~nNew nodes: ~p",[Node,Re]),
+	{noreply, State#state{nodes = Re}};
+
+handle_info({add_node,Node}, State = #state{nodes = Nodes}) -> 
+	{_,Re} = add_new_node(Node, Nodes),
+	{noreply, State#state{nodes = Re}};	
 
 handle_info({send, Message}, State) -> 
 	add_message(Message),
@@ -118,3 +123,33 @@ get_message(Hash, AllowedNodes) ->
 				end
 		end,
 	mnesia:activity(transaction, F).
+
+remove(Node,Nodes)->
+	{ok, NodeList} = application:get_env(message,node_list),
+	T = [proplists:get_value(Node,NodeList,null)],
+	{T,Nodes--T}.
+
+add_new_node(Node, Nodes) ->
+	{ok, NodeList} = application:get_env(message,node_list),
+	case proplists:get_value(Node, NodeList, none) of 
+		none -> 
+			io:format("~ninvalid node"),
+			{null,Nodes};
+		ValNode -> 
+			case lists:member(ValNode, Nodes) of
+				true ->
+					io:format("~nnode already exists"),
+					{null,Nodes};
+				_ ->
+					Re = Nodes++[ValNode],
+					io:format("Node added, new list: ~n~p~n",[Re]),
+					{ValNode,Re}
+			end
+	end.
+					  
+					  
+				
+
+
+
+
