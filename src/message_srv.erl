@@ -34,11 +34,16 @@ init(_Args) ->
 
 handle_call({add_node,Node}, _From, State = #state{nodes = Nodes}) ->
 	{MyHost,_MyNode} = State#state.mynode,
-	{ValNode,Re} = add_new_node(Node,Nodes),
-	case ValNode of 
+	{T,Re} = add_new_node(Node,Nodes),
+	case T of 
 		null -> {reply, ok, State#state{nodes = Re}};
 		_ -> 
-			rpc:multicall([ValNode], gen_server, info, [message_srv,{add_node,MyHost},5000]),
+			io:format("~nadd multicall: ~p~n", [[T,MyHost]]),
+			proc_lib:spawn(fun() -> 
+								   rpc:multicall([T], gen_server, call, 
+												 [message_srv,{add_node_call,MyHost},
+												  5000])
+						    end),
 			{reply, ok, State#state{nodes = Re}}
 	end;
 			  
@@ -48,9 +53,23 @@ handle_call({remove_node,Node}, _From, State = #state{nodes = Nodes}) ->
 	case T of
 		null -> {reply, ok, State#state{nodes = Re}};
 		_ -> 
-			rpc:multicall(T, gen_server, info, [message_srv,{remove_node,MyHost},5000]),
+			io:format("~nremove multicall: ~p~n", [[T,MyHost]]),
+			proc_lib:spawn(fun() -> 
+								   rpc:multicall([T], gen_server, call, 
+												 [message_srv,{remove_node_call,MyHost},
+												  5000])
+						   end),
 			{reply, ok, State#state{nodes = Re}}
 	end;
+
+handle_call({remove_node_call,Node},_From, State = #state{nodes = Nodes}) -> 	
+	{_,Re} = remove(Node,Nodes),
+	io:format("Node removed: ~p~nNew nodes: ~p",[Node,Re]),
+	{noreply, State#state{nodes = Re}};
+
+handle_call({add_node_call,Node}, _From, State = #state{nodes = Nodes}) -> 
+	{_,Re} = add_new_node(Node, Nodes),
+	{noreply, State#state{nodes = Re}};
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
@@ -62,14 +81,6 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 -record(message, {hashcode, value, exp_date, node}).
 
-handle_info({remove_node,Node}, State = #state{nodes = Nodes}) -> 	
-	{_,Re} = remove(Node,Nodes),
-	io:format("Node removed: ~p~nNew nodes: ~p",[Node,Re]),
-	{noreply, State#state{nodes = Re}};
-
-handle_info({add_node,Node}, State = #state{nodes = Nodes}) -> 
-	{_,Re} = add_new_node(Node, Nodes),
-	{noreply, State#state{nodes = Re}};	
 
 handle_info({send, Message}, State) -> 
 	add_message(Message),
@@ -126,8 +137,10 @@ get_message(Hash, AllowedNodes) ->
 
 remove(Node,Nodes)->
 	{ok, NodeList} = application:get_env(message,node_list),
-	T = [proplists:get_value(Node,NodeList,null)],
-	{T,Nodes--T}.
+	T = proplists:get_value(Node,NodeList,null),
+	Re = Nodes--T,
+	io:format("Node removed: ~p~n, new list: ~n~p~n",[T,Re]),
+	{T,Re}.
 
 add_new_node(Node, Nodes) ->
 	{ok, NodeList} = application:get_env(message,node_list),
