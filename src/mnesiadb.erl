@@ -10,17 +10,14 @@
 -export([init/0]).
 
 -record(message, {hashcode, value, exp_date, node}).
--record(nodelist,{node}).
+
 
 init() -> 	
 	{ok, NodeList} = application:get_env(message,node_list),	
 	Nodes = [H || {_, H} <-NodeList],	
 	io:format("Start mnesia nodes:~n~p~n",[Nodes]),
-	mnesia:create_schema([node()]),
-	mnesia:start(),
-	mnesia:create_table(nodelist,
-						[{ram_copies, Nodes},
-						 {attributes, record_info(fields, nodelist)}]),
+	mnesia:create_schema(NodeList),
+	rpc:multicall(Nodes, application, start, [mnesia]),
 	mnesia:create_table(message,
 						[{ram_copies, Nodes},
 						 {attributes, record_info(fields, message)}]).

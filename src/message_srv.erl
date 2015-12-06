@@ -3,6 +3,7 @@
 -define(SERVER, ?MODULE).
 
 -record(state, {nodes = [],messages=[]}).
+%-record(message, {hashcode, value, exp_date, node}).
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
@@ -48,6 +49,15 @@ handle_cast(stop, State) ->
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
+-record(message, {hashcode, value, exp_date, node}).
+
+handle_info({send, Message}, State) -> 
+	add_message(Message),
+	{noreply, State};
+
+handle_info({remove,Message}, State) -> 
+	remove_message(Message),
+	{noreply, State};
 
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -61,3 +71,16 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
+add_message(Message = #message{}) ->
+	%{Mega, Sec, Micro} = os:timestamp(),
+	F = fun() ->
+				mnesia:write(Message)%#message{exp_date = {Mega, Sec+5, Micro}})							
+		end,
+	erlang:send_after(5000, self(), {remove,Message}),
+	mnesia:activity(transaction, F).
+
+remove_message(Message = #message{}) ->	
+	mnesia:transaction(fun() -> 
+							   mnesia:delete_object(message, Message, write) 
+					   end).
+
