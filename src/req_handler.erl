@@ -7,24 +7,39 @@
 	terminate/3
 ]).
 
+-include("include/URLs.hrl").
+
 init(Req, Opts) ->	
     handle(Req,Opts).
 
 handle(Req, State) ->
-	 io:format("~p~n",[Req]),	 
-	 handle(cowboy_req:method(Req),Req,State).
+	io:format("~p~n",[Req]),	 
+	handle( cowboy_req:path(Req),cowboy_req:method(Req),Req,State).
 
-handle(<<"POST">> , Req, State) ->
+handle(_, <<"POST">> , Req, State) ->
 	Body = <<"<h1>This is a response for POST</h1>">>,
 	{ok, Req3} = cowboy_req:reply(200, [], Body, Req),
 	{ok, Req3, State};
 
-handle(<<"GET">>, Req, State) -> 
+handle(Path = ?ADD, <<"GET">>, Req, State) -> 
+	Body = Path,
+	cowboy_req:reply(200, [], Body, Req),
+    {ok, Req, State};
+handle(Path = ?GET, <<"GET">>, Req, State) -> 
+	Body = Path,
+	cowboy_req:reply(200, [], Body, Req),
+    {ok, Req, State};
+handle(Path = ?SEND, <<"GET">>, Req, State) -> 
+	Body = Path,
+	cowboy_req:reply(200, [], Body, Req),
+    {ok, Req, State};
+
+handle(_, <<"GET">>, Req, State) -> 
 	Body = <<"<h1>This is a response for GET</h1>">>,
 	cowboy_req:reply(200, [], Body, Req),
     {ok, Req, State};
 
-handle(_,  Req, State) ->
+handle(_, _,  Req, State) ->
             Body = <<"<h1>This is a response for other methods</h1>">>,
             {ok, Req3} = cowboy_req:reply(200, [], Body, Req),
             {ok, Req3, State}.

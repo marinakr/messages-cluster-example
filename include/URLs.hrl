@@ -1,6 +1,6 @@
 -define(MAIN, "http://localhost:8008/").
--define(ADD, "add").
--define(SEND, "send").
--define(GET, "get").
+-define(ADD, <<"/server/add">>).
+-define(SEND, <<"/message/send">>).
+-define(GET, <<"/message/get">>).
 
 

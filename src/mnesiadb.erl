@@ -28,3 +28,4 @@ do_init_db_slave(MasterNode) ->
     mnesia:change_table_copy_type(schema, node(), disc_copies),
     Tabs = mnesia:system_info(tables) -- [schema],
     [mnesia:add_table_copy(Tab, node(), disc_copies) || Tab <- Tabs].
+ 
