@@ -44,11 +44,9 @@ handle(?GET, <<"POST">>, Req, State) ->
 handle(?SEND, <<"POST">>, Req, State) -> 
 	{ok,Body,_} = cowboy_req:body(Req),
 	{Mega, Sec, Micro} = os:timestamp(),
-	Hash = crypto:hash(md4,[
-							erlang:integer_to_binary(Mega),
-							erlang:integer_to_binary(Sec),
-							erlang:integer_to_binary(Micro),
-							Body]),
+	TimeCode = [integer_to_list(H) || H <- [Mega,Sec,Micro]],
+	Code = lists:flatten([binary_to_list(Body),TimeCode]),
+	Hash = base64:encode(Code), 		
 	io:format("Send message: ~p~n",[Body]),	
 	message_srv ! {send,{Hash,Body}},
 	cowboy_req:reply(200, [], Hash, Req),

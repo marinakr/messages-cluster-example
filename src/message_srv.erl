@@ -76,7 +76,7 @@ handle_call({add_node_call,Node}, _From, State = #state{nodes = Nodes}) ->
 	{noreply, State#state{nodes = Re}};
 
 handle_call({get,Message}, _From, State=#state{nodes = Nodes}) -> 
-	io:format("ask message"),
+	io:format("ask message ~p~n",[Message]),
 	{noreply, get_message(Message,Nodes),State};
 
 handle_call(_Request, _From, State) ->
@@ -122,11 +122,11 @@ remove_message(Message = #message{}) ->
 							   mnesia:delete_object(message, Message, write) 
 					   end).
 get_message(Hash, AllowedNodes) ->
+	io:format("Hash, AllowedNodes: ~p~n",[[Hash, AllowedNodes]]),
 	F = fun() ->
 				case mnesia:read({message, Hash}) of
-					[#message{ value = Val}] ->
-						io:format("~nHash : ~p~n",[Hash]),
-						Message = #message{hashcode = Hash, value = Val},
+					[Message] ->
+						io:format("~nMessage : ~p~n",[Message]),						
 						Message;
 %% 						case lists:member(Node, AllowedNodes) of 
 %% 							true -> 
