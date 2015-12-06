@@ -10,7 +10,6 @@
 
 start() ->
 	register(rcvr, self()),
-	mnesiadb:init(),
 	ok = ensure_started(?APPS),
 	application:start(message).
 
