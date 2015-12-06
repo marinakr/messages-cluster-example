@@ -33,31 +33,29 @@ init(_Args) ->
     {ok, #state{nodes = [Node],mynode = {Host,Node}}}.
 
 handle_call({add_node,Node}, _From, State = #state{nodes = Nodes}) ->
-	{MyHost,_MyNode} = State#state.mynode,
 	{T,Re} = add_new_node(Node,Nodes),
 	case T of 
 		null -> {reply, ok, State#state{nodes = Re}};
 		_ -> 
-			io:format("~nadd multicall: ~p~n", [[T,MyHost]]),
 			proc_lib:spawn(fun() -> 
-								   rpc:multicall([T], gen_server, call, 
-												 [message_srv,{add_node_call,MyHost},
-												  5000])
+								   [rpc:multicall([T], gen_server, call, 
+												 [message_srv,{add_node_call,Host},
+												  5000]) || Host <- Nodes -- [T]]
 						    end),
 			{reply, ok, State#state{nodes = Re}}
 	end;
 			  
-handle_call({remove_node,Node}, _From, State = #state{nodes = Nodes}) ->	
-	{MyHost,_MyNode} = State#state.mynode,
+handle_call({remove_node,Node}, _From, State = #state{nodes = Nodes}) ->
 	{T,Re} = remove(Node,Nodes),
 	case T of
 		null -> {reply, ok, State#state{nodes = Re}};
 		_ -> 
-			io:format("~nremove multicall: ~p~n", [[T,MyHost]]),
 			proc_lib:spawn(fun() -> 
-								   rpc:multicall([T], gen_server, call, 
-												 [message_srv,{remove_node_call,MyHost},
-												  5000])
+								   [rpc:multicall([T], 
+												 gen_server, call, 
+												 [message_srv,
+												  {remove_node_call,Host},
+												  5000]) || Host <- Nodes -- [T]]
 						   end),
 			{reply, ok, State#state{nodes = Re}}
 	end;
@@ -108,7 +106,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 add_message(Message = #message{}) ->
 	F = fun() ->
-				mnesia:write(Message) %#message{exp_date = {Mega, Sec+5, Micro}})							
+				mnesia:write(Message) 							
 		end,
 	erlang:send_after(5000, self(), {remove,Message}),
 	mnesia:activity(transaction, F).
