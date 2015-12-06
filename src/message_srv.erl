@@ -38,7 +38,7 @@ handle_call({add_node,Node}, _From, State = #state{nodes = Nodes}) ->
 		null -> {reply, ok, State#state{nodes = Re}};
 		_ -> 
 			{ok, NodeList} = application:get_env(message,node_list),
-			All = [H || {_,H} <- NodeList],
+			All = [H || {_,H} <- NodeList,H /= node()],
 			proc_lib:spawn(fun() -> 
 								   rpc:multicall(All, gen_server, call, 
 												 [message_srv,
@@ -155,7 +155,7 @@ add_new_node(Node, Nodes) ->
 		ValNode -> 
 			case lists:member(ValNode, Nodes) of
 				true ->
-					io:format("~nnode already exists"),
+					io:format("~nnode already exists: ~p~n",[ValNode]),
 					{null,Nodes};
 				_ ->
 					Re = Nodes++[ValNode],
