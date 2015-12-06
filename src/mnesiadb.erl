@@ -9,13 +9,17 @@
 %% ====================================================================
 -export([init/0]).
 
--record(message, {hashcode, value, exp_date}).
+-record(message, {hashcode, value, exp_date, node}).
+-record(nodelist,{node}).
 
 init() -> 
 	mnesia:create_schema([node()]),
 	mnesia:start(),
 	mnesia:create_table(message,
-						[{ram_copies, [node()]},
+						[{disc_copies, [node()]},
+						 {attributes, record_info(fields, message)}]),
+	mnesia:create_table(message,
+						[{disc_copies, [node()]},
 						 {attributes, record_info(fields, message)}]).
 
 %% ====================================================================

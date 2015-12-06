@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 -define(SERVER, ?MODULE).
 
-
+-record(state, {nodes = [],messages=[]}).
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
@@ -27,11 +27,24 @@ start_link() ->
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
-init(Args) ->
-    {ok, Args}.
+init(_Args) ->
+    {ok, #state{}}.
+
+handle_call({add_node,Node}, _From, State = #state{nodes = Nodes}) ->
+	Re = Nodes++[erlang:binary_to_list(Node)],
+	io:format("Node added, new list: ~n~p~n",[Re]),
+	{reply, ok, State#state{nodes = Re}};
+
+handle_call({remove_node,Node}, _From, State = #state{nodes = Nodes}) ->
+	Re = Nodes--[erlang:binary_to_list(Node)],
+	io:format("Node removed~n~p~n",[Re]),
+	{reply, ok, State#state{nodes = Re}};
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
+
+handle_cast(stop, State) ->
+	{stop, normal, State};
 
 handle_cast(_Msg, State) ->
     {noreply, State}.

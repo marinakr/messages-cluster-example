@@ -23,6 +23,6 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    %MainServer = ?CHILD(message_srv, worker),
-    {ok, { {one_for_one, 200, 10}, []} }.
+    MainServer = ?CHILD(message_srv, worker),
+    {ok, { {one_for_one, 200, 10}, [MainServer]} }.
 

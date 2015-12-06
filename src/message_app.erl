@@ -19,7 +19,7 @@ start(_StartType, _StartArgs) ->
 											 {'_', req_handler, []}
 											]}
 									 ]),
-	Port = 8008,
+	{ok,Port} = application:get_env(message,port),
 	{ok, _} = cowboy:start_http(http_listener, 100,
 								[{port, Port}],
 								[{env, [{dispatch, Dispatch}]}]
