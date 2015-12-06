@@ -44,9 +44,9 @@ handle_call({add_node,Node}, _From, State = #state{nodes = Nodes}) ->
 					   io:format("~nnode already exists"),
 					   {reply, ok, State};
 				  _ ->
-					  Re = Nodes++[erlang:binary_to_list(ValNode)],
+					  Re = Nodes++[ValNode],
 					  io:format("Node added, new list: ~n~p~n",[Re]),
-					  rpc:multicall([ValNode], gen_server, call, [{add_node,MyHost}]),
+					  rpc:multicall([ValNode], gen_server, call, [message_srv,{add_node,MyHost},5000]),
 					  {reply, ok, State#state{nodes = Re}}
 			   end
 	end;
