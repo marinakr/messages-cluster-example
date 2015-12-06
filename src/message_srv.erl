@@ -30,32 +30,37 @@ start_link() ->
 init(_Args) ->
 	{ok,{Host,Node}} = 
 		 application:get_env(message,currentnode),
-    {ok, #state{nodes = [Node],mynode = {Host,Node}}}.
+    {ok, #state{nodes = [],mynode = {Host,Node}}}.
 
 handle_call({add_node,Node}, _From, State = #state{nodes = Nodes}) ->
-	{T,Re} = add_new_node(Node,Nodes),
+	{{T,V},Re} = add_new_node(Node,Nodes),
 	case T of 
 		null -> {reply, ok, State#state{nodes = Re}};
 		_ -> 
+			{ok, NodeList} = application:get_env(message,node_list),
+			All = [H || {_,H} <- NodeList],
 			proc_lib:spawn(fun() -> 
-								   [rpc:multicall([T], gen_server, call, 
-												 [message_srv,{add_node_call,Host},
-												  5000]) || Host <- Nodes -- [T]]
-						    end),
+								   rpc:multicall(All, gen_server, call, 
+												 [message_srv,
+												  {add_node_call,V},
+												  5000]) 
+						   end),
 			{reply, ok, State#state{nodes = Re}}
 	end;
 			  
 handle_call({remove_node,Node}, _From, State = #state{nodes = Nodes}) ->
-	{T,Re} = remove(Node,Nodes),
+	{{T,V},Re} = remove(Node,Nodes),
 	case T of
 		null -> {reply, ok, State#state{nodes = Re}};
 		_ -> 
+			{ok, NodeList} = application:get_env(message,node_list),
+			All = [H || {_,H} <- NodeList, H /= node()],
 			proc_lib:spawn(fun() -> 
-								   [rpc:multicall([T], 
+								   rpc:multicall(All, 
 												 gen_server, call, 
 												 [message_srv,
-												  {remove_node_call,Host},
-												  5000]) || Host <- Nodes -- [T]]
+												  {remove_node_call,V},
+												  5000])
 						   end),
 			{reply, ok, State#state{nodes = Re}}
 	end;
@@ -138,13 +143,14 @@ remove(Node,Nodes)->
 	T = proplists:get_value(Node,NodeList,null),
 	Re = Nodes--[T],
 	io:format("Node removed: ~p~n, new list: ~n~p~n",[T,Re]),
-	{T,Re}.
+	{{T,Node},Re}.
 
 add_new_node(Node, Nodes) ->
 	{ok, NodeList} = application:get_env(message,node_list),
-	case proplists:get_value(Node, NodeList, none) of 
+	case %lists:member(Node, [V || {H,V} <- NodeList]) of
+		proplists:get_value(Node, NodeList, none) of 
 		none -> 
-			io:format("~ninvalid node"),
+			io:format("~ninvalid node ~n~p~n",[[Node,Nodes,NodeList]]),
 			{null,Nodes};
 		ValNode -> 
 			case lists:member(ValNode, Nodes) of
@@ -154,7 +160,7 @@ add_new_node(Node, Nodes) ->
 				_ ->
 					Re = Nodes++[ValNode],
 					io:format("Node added, new list: ~n~p~n",[Re]),
-					{ValNode,Re}
+					{{ValNode,Node},Re}
 			end
 	end.
 					  
