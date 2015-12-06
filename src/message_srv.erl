@@ -138,7 +138,7 @@ get_message(Hash, AllowedNodes) ->
 remove(Node,Nodes)->
 	{ok, NodeList} = application:get_env(message,node_list),
 	T = proplists:get_value(Node,NodeList,null),
-	Re = Nodes--T,
+	Re = Nodes--[T],
 	io:format("Node removed: ~p~n, new list: ~n~p~n",[T,Re]),
 	{T,Re}.
 
