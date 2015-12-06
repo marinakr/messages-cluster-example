@@ -9,8 +9,7 @@
 %% ====================================================================
 -export([init/0]).
 
--record(message, {hashcode, value, node}).
--record(nodes,{node}).
+-record(message, {hashcode, value}).
 
 init() -> 	
 	{ok, NodeList} = application:get_env(message,node_list),	
@@ -18,10 +17,10 @@ init() ->
 	io:format("Start mnesia nodes:~n~p~n",[Nodes]),
 	mnesia:create_schema(NodeList),
 	rpc:multicall(Nodes, application, start, [mnesia]),
-	mnesia:create_table(nodes,[{ram_copies, Nodes},
-						 {attributes, record_info(fields, nodes)}]),
 	mnesia:create_table(message,
 						[{ram_copies, Nodes},
+						 {type,set},
+						 {record_name, message},
 						 {attributes, record_info(fields, message)}]).
 
 %% ====================================================================

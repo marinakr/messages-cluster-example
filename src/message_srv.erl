@@ -3,6 +3,7 @@
 -define(SERVER, ?MODULE).
 
 -record(state, {nodes = [],mynode}).
+-record(message, {hashcode, value}).
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
@@ -74,6 +75,10 @@ handle_call({add_node_call,Node}, _From, State = #state{nodes = Nodes}) ->
 	{_,Re} = add_new_node(Node, Nodes),
 	{noreply, State#state{nodes = Re}};
 
+handle_call({get,Message}, _From, State=#state{nodes = Nodes}) -> 
+	io:format("ask message"),
+	{noreply, get_message(Message,Nodes),State};
+
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
@@ -82,19 +87,11 @@ handle_cast(stop, State) ->
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
--record(message, {hashcode, value, exp_date, node}).
+
 
 
 handle_info({send, Message}, State) -> 
 	add_message(Message),
-	{noreply, State};
-
-handle_info({remove,Message}, State) -> 
-	remove_message(Message),
-	{noreply, State};
-
-handle_info({get,Message}, State=#state{nodes = Nodes}) -> 
-	get_message(Message,Nodes),
 	{noreply, State};
 
 handle_info(_Info, State) ->
@@ -109,12 +106,16 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-add_message(Message = #message{}) ->
+add_message({Message,Value}) ->
+	io:format("~nReceive message: ~p~n",[Message]),
+	MessageDB = #message{hashcode = Message,value = Value},
 	F = fun() ->
-				mnesia:write(Message) 							
+				mnesia:write(MessageDB) 							
 		end,
 	erlang:send_after(5000, self(), {remove,Message}),
-	mnesia:activity(transaction, F).
+	Re = mnesia:activity(transaction, F),
+	io:format("Writed : ~p~n",[Re]),
+	Re.
 
 remove_message(Message = #message{}) ->	
 	mnesia:transaction(fun() -> 
@@ -123,20 +124,24 @@ remove_message(Message = #message{}) ->
 get_message(Hash, AllowedNodes) ->
 	F = fun() ->
 				case mnesia:read({message, Hash}) of
-					[#message{value=Val, node = Node}] ->
-						Message = #message{hashcode = Hash, value = Val, node = Node},
-						case lists:member(Node, AllowedNodes) of 
-							true -> 
-								self() ! {remove,Message},
-								Message;
-							_ ->
-								Message#message{value = <<"Invalid message identificator">>}
-						end;
+					[#message{ value = Val}] ->
+						io:format("~nHash : ~p~n",[Hash]),
+						Message = #message{hashcode = Hash, value = Val},
+						Message;
+%% 						case lists:member(Node, AllowedNodes) of 
+%% 							true -> 
+%% 								self() ! {remove,Message},
+%% 								Message;
+%% 							_ ->
+%% 								Message#message{value = <<"Invalid message identificator">>}
+%% 						end;
 					[] ->
 						undefined
 				end
 		end,
-	mnesia:activity(transaction, F).
+	Re = mnesia:activity(transaction, F),
+	io:format("result: ~p",[Re]),
+	Re.
 
 remove(Node,Nodes)->
 	{ok, NodeList} = application:get_env(message,node_list),

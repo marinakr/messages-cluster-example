@@ -30,14 +30,15 @@ handle(?ADD, <<"POST">>, Req, State) ->
 
 handle(?REMOVE, <<"POST">>, Req, State) -> 	
 	{ok,Body,_} = cowboy_req:body(Req),
-	io:format("~p~n",[Body]),	
+	io:format("~p~n~n~n",[Body]),	
 	gen_server:call(message_srv, {remove_node,Body}, 5000),
 	cowboy_req:reply(200, [],  <<"ok">>, Req),
     {ok, Req, State};
 
 handle(?GET, <<"POST">>, Req, State) -> 
 	{ok,Body,_} = cowboy_req:body(Req),
-	
+	J = gen_server:call(message_srv, {get,Body},5000),
+	io:format("~nReply ~p~n",[J]),
 	cowboy_req:reply(200, [], Body, Req),
     {ok, Req, State};
 handle(?SEND, <<"POST">>, Req, State) -> 
@@ -48,7 +49,8 @@ handle(?SEND, <<"POST">>, Req, State) ->
 							erlang:integer_to_binary(Sec),
 							erlang:integer_to_binary(Micro),
 							Body]),
-	
+	io:format("Send message: ~p~n",[Body]),	
+	message_srv ! {send,{Hash,Body}},
 	cowboy_req:reply(200, [], Hash, Req),
     {ok, Req, State};
 
