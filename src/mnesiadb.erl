@@ -12,6 +12,7 @@
 -record(message, {hashcode, value}).
 
 init() -> 	
+	io:format("Call init"),
 	{ok, NodeList} = application:get_env(message,node_list),	
 	Nodes = [N || {_,N} <- NodeList],
 	D = mnesia:delete_schema(Nodes),
@@ -22,7 +23,8 @@ init() ->
 						 {type,set},
 						 {record_name, message},
 						 {attributes, record_info(fields, message)}]),
-	io:format("Started: ~p  Clear: ~p Created: ~p Table: ~p~n",[S,D,C,T]),
+	Info = mnesia:info(),
+	io:format("Started: ~p  Clear: ~p Created: ~p Table: ~p~nInfo: ~p~n",[S,D,C,T,Info]),
 	ok.
 
 %% ====================================================================

@@ -31,11 +31,12 @@ start_link() ->
 init(_Args) ->
 	{ok,{Host,Node}} = 
 		 application:get_env(message,currentnode),
-	erlang:send_after(3000, 
+	erlang:send_after(5000, 
 					  message_srv, 
 					  {me_started,Node}
 					 ),
-    {ok, #state{nodes = [],mynode = {Host,Node}}}.
+    {ok, #state{all_nodes_started = [node()],
+				nodes = [],mynode = {Host,Node}}}.
 
 handle_call({add_node,Node}, _From, State = #state{nodes = Nodes}) ->
 	{{T,V},Re} = add_new_node(Node,Nodes),
@@ -99,7 +100,17 @@ handle_call({me_started, Node}, _From, State = #state{all_nodes_started = Starte
 		true ->
 			{reply, ok, State};
 		_ ->
-			New = Started++[Node],
+			New = Started++[Node],			
+			{ok, NodeList} = application:get_env(message,node_list),
+			Le = erlang:length(NodeList),
+			Nel = erlang:length(New),
+			case Le == Nel of
+				true ->
+					mnesiadb:init();
+				_ -> 
+					io:format("~p ~p",[Le,Nel]),
+					ok 
+			end,
 			io:format("new node started: ~p~n~p~n",[Node,New]),
 			{reply, ok, State#state{all_nodes_started = New}}
 	end;
@@ -114,10 +125,10 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 
-handle_info({me_started,SelfNode}, State) ->
-	io:format("Tell all I am start ~p~n",[SelfNode]),
+handle_info({me_started,SelfNode}, State) ->	
 	{ok, NodeList} = application:get_env(message,node_list),
 	All = [H || {_,H} <- NodeList,H /= node()],
+	io:format("Tell all I am start ~p~n~p~n",[SelfNode,NodeList]),
 	R = rpc:multicall(All, gen_server, call, [message_srv,{me_started,SelfNode},5000]),			
 	{noreply, State};
 
