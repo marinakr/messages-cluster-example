@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 -define(SERVER, ?MODULE).
 
--record(state, {nodes = [],mynode, all_nodes_started = false}).
+-record(state, {nodes = [],mynode, all_nodes_started = []}).
 -record(message, {hashcode, value}).
 %% ------------------------------------------------------------------
 %% API Function Exports
@@ -31,9 +31,9 @@ start_link() ->
 init(_Args) ->
 	{ok,{Host,Node}} = 
 		 application:get_env(message,currentnode),
-	erlang:send_after(15000, 
+	erlang:send_after(3000, 
 					  message_srv, 
-					  all_nodes_started
+					  {me_started,Node}
 					 ),
     {ok, #state{nodes = [],mynode = {Host,Node}}}.
 
@@ -94,8 +94,15 @@ handle_call({get, MessageHash}, _From, State=#state{nodes = Nodes, mynode = CurN
 	io:format("Value ~p~n",[Value]),
 	{reply, Value, State};
 
-handle_call(all_nodes_started, _From, State) ->
-	{reply, ok, State#state{all_nodes_started = true}}
+handle_call({me_started, Node}, _From, State = #state{all_nodes_started = Started}) ->
+	case lists:member(Node, Started) of 
+		true ->
+			{reply, ok, State};
+		_ ->
+			New = Started++[Node],
+			io:format("new node started: ~p~n~p~n",[Node,New]),
+			{reply, ok, State#state{all_nodes_started = New}}
+	end;
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
@@ -106,13 +113,14 @@ handle_cast(stop, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info(all_nodes_started, State#state{all_nodes_started = true}) ->
-	{noreply,State};
 
-handle_info(all_nodes_started, State#state{all_nodes_started = false,nodes = Nodes}) ->
-	mnesiadb:init(),
-	rpc:multicall(Nodes, gen_server, call, [all_nodes_started]),	
-	{noreply,State};
+handle_info({me_started,SelfNode}, State) ->
+	io:format("Tell all I am start ~p~n",[SelfNode]),
+	{ok, NodeList} = application:get_env(message,node_list),
+	All = [H || {_,H} <- NodeList,H /= node()],
+	R = rpc:multicall(All, gen_server, call, [message_srv,{me_started,SelfNode},5000]),			
+	{noreply, State};
+
 
 handle_info({remove, Message}, State) -> 
 	remove_message(Message),
