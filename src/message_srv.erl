@@ -158,7 +158,7 @@ add_message({Message,Value}) ->
 	F = fun() ->
 				mnesia:write(MessageDB) 							
 		end,
-	erlang:send_after(55000, self(), {remove,MessageDB}),
+	erlang:send_after(5000, self(), {remove,MessageDB}),
 	Re = mnesia:activity(transaction, F),
 	io:format("Writed : ~p~n",[Re]),
 	Re.
