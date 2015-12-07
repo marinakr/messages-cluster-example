@@ -39,7 +39,7 @@ handle(?GET, <<"POST">>, Req, State) ->
 	{ok,Body,_} = cowboy_req:body(Req),
 	J = gen_server:call(message_srv, {get,Body},5000),
 	io:format("~nReply ~p~n",[J]),
-	cowboy_req:reply(200, [], Body, Req),
+	cowboy_req:reply(200, [],  J, Req),
     {ok, Req, State};
 
 handle(?SEND, <<"POST">>, Req, State) -> 

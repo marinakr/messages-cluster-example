@@ -82,13 +82,13 @@ handle_call({get, MessageHash}, _From, State=#state{nodes = Nodes, mynode = CurN
 				true ->
 					ReMessage = get_message(MessageHash),
 					self() ! {remove, ReMessage},
-					ReMessage;
+					ReMessage#message.value;
 				_ ->
 					io:format("Alloewd, Current ~p~n",[[Nodes,MyNode]]),
 					<<"Invalid message identificator">>
 			end,
 	io:format("Value ~p~n",[Value]),
-	{noreply, Value, State};
+	{reply, Value, State};
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
@@ -136,7 +136,7 @@ remove_message(Message = #message{}) ->
 					   end).
 
 get_message(Hash) ->
-	io:format("Hash, AllowedNodes: ~p~n",[Hash]),
+	io:format("Hash: ~p~n",[Hash]),
 	F = fun() ->
 				case mnesia:read({message, Hash}) of
 					[Message] -> Message;
