@@ -75,9 +75,20 @@ handle_call({add_node_call,Node}, _From, State = #state{nodes = Nodes}) ->
 	{_,Re} = add_new_node(Node, Nodes),
 	{noreply, State#state{nodes = Re}};
 
-handle_call({get,Message}, _From, State=#state{nodes = Nodes}) -> 
-	io:format("ask message ~p~n",[Message]),
-	{noreply, get_message(Message,Nodes),State};
+handle_call({get, MessageHash}, _From, State=#state{nodes = Nodes, mynode = CurNode}) ->
+	{_MyHost, MyNode} = CurNode,
+	io:format("ask message ~p~n",[MessageHash]),
+	Value = case lists:member(MyNode, Nodes) of 
+				true ->
+					ReMessage = get_message(MessageHash),
+					self() ! {remove, ReMessage},
+					ReMessage;
+				_ ->
+					io:format("Alloewd, Current ~p~n",[[Nodes,MyNode]]),
+					<<"Invalid message identificator">>
+			end,
+	io:format("Value ~p~n",[Value]),
+	{noreply, Value, State};
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
@@ -89,7 +100,9 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 
-
+handle_info({remove, Message}, State) -> 
+	remove_message(Message),
+	{noreply, State};
 handle_info({send, Message}, State) -> 
 	add_message(Message),
 	{noreply, State};
@@ -112,7 +125,7 @@ add_message({Message,Value}) ->
 	F = fun() ->
 				mnesia:write(MessageDB) 							
 		end,
-	erlang:send_after(5000, self(), {remove,Message}),
+	erlang:send_after(55000, self(), {remove,MessageDB}),
 	Re = mnesia:activity(transaction, F),
 	io:format("Writed : ~p~n",[Re]),
 	Re.
@@ -121,27 +134,17 @@ remove_message(Message = #message{}) ->
 	mnesia:transaction(fun() -> 
 							   mnesia:delete_object(message, Message, write) 
 					   end).
-get_message(Hash, AllowedNodes) ->
-	io:format("Hash, AllowedNodes: ~p~n",[[Hash, AllowedNodes]]),
+
+get_message(Hash) ->
+	io:format("Hash, AllowedNodes: ~p~n",[Hash]),
 	F = fun() ->
 				case mnesia:read({message, Hash}) of
-					[Message] ->
-						io:format("~nMessage : ~p~n",[Message]),						
-						Message;
-%% 						case lists:member(Node, AllowedNodes) of 
-%% 							true -> 
-%% 								self() ! {remove,Message},
-%% 								Message;
-%% 							_ ->
-%% 								Message#message{value = <<"Invalid message identificator">>}
-%% 						end;
+					[Message] -> Message;
 					[] ->
 						undefined
 				end
 		end,
-	Re = mnesia:activity(transaction, F),
-	io:format("result: ~p",[Re]),
-	Re.
+	mnesia:activity(transaction, F).
 
 remove(Node,Nodes)->
 	{ok, NodeList} = application:get_env(message,node_list),
@@ -152,8 +155,7 @@ remove(Node,Nodes)->
 
 add_new_node(Node, Nodes) ->
 	{ok, NodeList} = application:get_env(message,node_list),
-	case %lists:member(Node, [V || {H,V} <- NodeList]) of
-		proplists:get_value(Node, NodeList, none) of 
+	case proplists:get_value(Node, NodeList, none) of 
 		none -> 
 			io:format("~ninvalid node ~n~p~n",[[Node,Nodes,NodeList]]),
 			{null,Nodes};

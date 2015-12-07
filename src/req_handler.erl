@@ -41,6 +41,7 @@ handle(?GET, <<"POST">>, Req, State) ->
 	io:format("~nReply ~p~n",[J]),
 	cowboy_req:reply(200, [], Body, Req),
     {ok, Req, State};
+
 handle(?SEND, <<"POST">>, Req, State) -> 
 	{ok,Body,_} = cowboy_req:body(Req),
 	{Mega, Sec, Micro} = os:timestamp(),
