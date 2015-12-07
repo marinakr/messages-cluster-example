@@ -13,15 +13,17 @@
 
 init() -> 	
 	{ok, NodeList} = application:get_env(message,node_list),	
-	Nodes = [H || {_, H} <-NodeList],	
-	io:format("Start mnesia nodes:~n~p~n",[Nodes]),
-	mnesia:create_schema(NodeList),
-	rpc:multicall(Nodes, application, start, [mnesia]),
-	mnesia:create_table(message,
+	Nodes = [N || {_,N} <- NodeList],
+	D = mnesia:delete_schema(Nodes),
+	C = mnesia:create_schema(Nodes),
+	S = mnesia:start(),
+	T = mnesia:create_table(message,
 						[{ram_copies, Nodes},
 						 {type,set},
 						 {record_name, message},
-						 {attributes, record_info(fields, message)}]).
+						 {attributes, record_info(fields, message)}]),
+	io:format("Started: ~p  Clear: ~p Created: ~p Table: ~p~n",[S,D,C,T]),
+	ok.
 
 %% ====================================================================
 %% Internal functions

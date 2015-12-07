@@ -25,7 +25,7 @@ start(_StartType, _StartArgs) ->
 								[{env, [{dispatch, Dispatch}]}]
 							   ),
 	
-	mnesiadb:init(),
+	%mnesiadb:init(),
     message_sup:start_link().
 
 stop(_State) ->

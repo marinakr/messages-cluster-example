@@ -31,6 +31,7 @@ start_link() ->
 init(_Args) ->
 	{ok,{Host,Node}} = 
 		 application:get_env(message,currentnode),
+	erlang:send_after(15000, message_srv, all_nodes_started),
     {ok, #state{nodes = [],mynode = {Host,Node}}}.
 
 handle_call({add_node,Node}, _From, State = #state{nodes = Nodes}) ->
@@ -99,6 +100,9 @@ handle_cast(stop, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
+handle_info(all_nodes_started, State) ->
+	mnesiadb:init(),
+	{noreply,State};
 
 handle_info({remove, Message}, State) -> 
 	remove_message(Message),
