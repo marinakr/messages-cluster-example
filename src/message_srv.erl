@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 -define(SERVER, ?MODULE).
 
--record(state, {nodes = [],mynode}).
+-record(state, {nodes = [],mynode, all_nodes_started = false}).
 -record(message, {hashcode, value}).
 %% ------------------------------------------------------------------
 %% API Function Exports
@@ -31,7 +31,10 @@ start_link() ->
 init(_Args) ->
 	{ok,{Host,Node}} = 
 		 application:get_env(message,currentnode),
-	erlang:send_after(15000, message_srv, all_nodes_started),
+	erlang:send_after(15000, 
+					  message_srv, 
+					  all_nodes_started
+					 ),
     {ok, #state{nodes = [],mynode = {Host,Node}}}.
 
 handle_call({add_node,Node}, _From, State = #state{nodes = Nodes}) ->
@@ -91,6 +94,9 @@ handle_call({get, MessageHash}, _From, State=#state{nodes = Nodes, mynode = CurN
 	io:format("Value ~p~n",[Value]),
 	{reply, Value, State};
 
+handle_call(all_nodes_started, _From, State) ->
+	{reply, ok, State#state{all_nodes_started = true}}
+
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
@@ -100,8 +106,12 @@ handle_cast(stop, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info(all_nodes_started, State) ->
+handle_info(all_nodes_started, State#state{all_nodes_started = true}) ->
+	{noreply,State};
+
+handle_info(all_nodes_started, State#state{all_nodes_started = false,nodes = Nodes}) ->
 	mnesiadb:init(),
+	rpc:multicall(Nodes, gen_server, call, [all_nodes_started]),	
 	{noreply,State};
 
 handle_info({remove, Message}, State) -> 
